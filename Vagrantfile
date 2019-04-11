@@ -41,7 +41,7 @@ SHELL
     simple_vm.vm.box = "ubuntu/bionic64"
     simple_vm.vm.provider :libvirt do |domain|
       domain.memory = 8192 
-      domain.cpus = 2
+      domain.cpus = 4
       domain.nested = true
       domain.autostart = true
     end
