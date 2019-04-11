@@ -1,28 +1,14 @@
-# -*- mode: ruby -*-
-# vi: set ft=ruby :
+# generate SSH key in the folder if they don't exist already
+system('echo "Installing vagrant plugins required"')
+system('[ $(vagrant plugin list | grep -c vagrant-libvirt) = "0" ] && vagrant plugin install vagrant-libvirt || echo "Vagrant-libvirt plugin detected"')
 
 
 Vagrant.configure("2") do |config|
 
-  $physical_interface = "ens18f1"  # interface name of your computer
-  $public_ip = "192.168.50.68" 	   # free IP from your IP range
+  $physical_interface = "enp0s25"    # interface name of your computer
+  $public_ip = "172.30.0.172"    	   # free IP from your IP range
 
-  config.vm.box = "ubuntu/xenial64"
-  config.disksize.size = '120GB' # requires a vagrant plugin
-  
-  config.vm.network "public_network", bridge: $physical_interface, ip: $public_ip # API and web access
-  config.vm.network "public_network", bridge: $physical_interface, auto_config: false # Network interface for VMs
-
-  config.vm.provider "libvirt" do |v|
-      v.name = "simple-vm"
-      v.memory = 16192 
-      v.cpus = 4
-      v.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"] 
-      v.customize ["modifyvm", :id, "--nicpromisc3", "allow-all"]
-  end
-
-  config.vm.provision "shell", inline: <<-SHELL
-
+  $common_provisioning = <<-SHELL
 # just installing some packages I usually need
 apt-get update
 apt-get -qy install python-pip
@@ -44,16 +30,28 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo usermod -aG docker ${USER}
 su - ${USER}
 
-
-SHELL
-
-
-
 # fixing vagrant local configuration; adding vagrant user to docker so that we can control containers
-config.vm.provision "shell", inline: <<-SHELL
 adduser vagrant docker
 echo 'LC_ALL="en_US.UTF-8"'  >>  /etc/default/locale
 echo 'LC_CTYPE="en_US.UTF-8"'  >>  /etc/default/locale
 SHELL
+
+  config.vm.define "simple-vm" do |simple_vm|
+    
+    simple_vm.vm.box = "ubuntu/bionic64"
+    simple_vm.vm.provider :libvirt do |domain|
+      domain.memory = 8192 
+      domain.cpus = 2
+      domain.nested = true
+      domain.autostart = true
+    end
+
+    simple_vm.vm.network "public_network", bridge: $physical_interface, :dev => $physical_interface, ip: $public_ip
+    simple_vm.vm.network "public_network", bridge: $physical_interface, :dev => $physical_interface, auto_config: false
+
+    # installing packages
+    simple_vm.vm.provision "shell", inline: $common_provisioning
+
+  end
 
 end
